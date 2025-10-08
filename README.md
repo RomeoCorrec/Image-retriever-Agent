@@ -8,6 +8,7 @@ This project implements a multimodal retrieval agent that combines:
 - **CLIP (Contrastive Language-Image Pre-training)** for encoding images and text into the same vector space
 - **Qdrant** vector database for efficient similarity search
 - **SmolAgents** framework with Ollama for intelligent query processing
+- **DeepFace** with Facenet512 for face detection and person identification
 - Natural language understanding to extract person names and visual descriptions from user queries
 
 ## Features
@@ -18,6 +19,7 @@ This project implements a multimodal retrieval agent that combines:
 - 🎯 **Semantic Similarity**: Uses CLIP embeddings for accurate image-text matching
 - 📊 **Confidence Scoring**: Returns results with similarity scores
 - 🖼️ **Visual Display**: Optional image visualization with matplotlib
+- 🧑 **Face Recognition**: Automatic face detection and recognition using DeepFace with Facenet512
 
 ## How It Works
 
@@ -56,6 +58,7 @@ pip install pillow
 pip install matplotlib
 pip install python-dotenv
 pip install huggingface-hub
+pip install deepface
 ```
 
 3. **Install and start Ollama**:
@@ -156,6 +159,8 @@ Image-retriever-Agent/
 - `embed_image()`: Generates CLIP embeddings for images
 - `embed_text_single()`: Generates CLIP embeddings for text
 - `load_filled_prompt()`: Loads and fills prompt template
+- `add_image_with_person_name_from_path()`: Adds images to the database with automatic face detection and person name association
+- `add_face_with_person_name_from_path()`: Registers a single face with a given person name in the faces collection
 
 ### prompts.txt
 System prompt template that instructs the agent on:
@@ -170,9 +175,12 @@ System prompt template that instructs the agent on:
 ### Models Used
 - **CLIP**: `openai/clip-vit-large-patch14` for multimodal embeddings
 - **LLM**: `qwen2:7b` via Ollama for query understanding
+- **Face Recognition**: `Facenet512` via DeepFace for face detection and recognition
 
 ### Vector Database
-- **Collection**: `images_collection`
+- **Collections**: 
+  - `images_collection`: Stores image embeddings with associated person names and file paths
+  - `faces`: Stores face embeddings for person identification
 - **Similarity Threshold**: 0.20 (configurable in `tools.py`)
 - **Metadata**: Stores image paths and person names
 
@@ -185,6 +193,7 @@ System prompt template that instructs the agent on:
 - `matplotlib`: Image visualization
 - `python-dotenv`: Environment variable management
 - `huggingface-hub`: Model access
+- `deepface`: Face detection and recognition framework
 
 ## Customization
 
@@ -201,6 +210,28 @@ When calling the agent, modify `top_k` parameter (default: 3)
 In `fonctions.py`:
 - CLIP model: Change `model_id` parameter in embedding functions
 - Ollama model: Modify `load_ollama_model()` parameters
+- Face recognition model: Modify `model_name` in `add_image_with_person_name_from_path()` and `add_face_with_person_name_from_path()` (options: VGG-Face, Facenet, Facenet512, OpenFace, DeepFace, DeepID, ArcFace, Dlib, SFace)
+
+### Database Indexing Functions
+
+The repository includes utility functions for indexing images with face detection:
+
+#### `add_image_with_person_name_from_path(image_path, client, ...)`
+Automatically detects faces in an image, identifies persons by comparing against the `faces` collection, and adds the image to the `images_collection` with associated person names.
+
+**Features:**
+- Detects up to 10 faces per image
+- Matches detected faces against known persons in the database
+- Prevents duplicate image entries
+- Returns detected person names and confidence scores
+
+#### `add_face_with_person_name_from_path(image_path, person_name, client, ...)`
+Registers a reference face for a person in the `faces` collection.
+
+**Features:**
+- Requires exactly one face in the image
+- Stores face embedding with associated person name
+- Used to build the face recognition reference database
 
 ## Troubleshooting
 
@@ -223,6 +254,11 @@ In `fonctions.py`:
    - Try adjusting the similarity threshold
    - Rephrase your query
 
+5. **DeepFace/Face Detection Issues**
+   - Ensure OpenCV is properly installed
+   - Check that face images are clear and properly oriented
+   - Verify the detector backend (opencv, mtcnn, mediapipe) is available
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit issues or pull requests.
@@ -237,6 +273,7 @@ This project is open source. Please check with the repository owner for specific
 - [Qdrant](https://qdrant.tech/) for the vector database
 - [SmolAgents](https://github.com/huggingface/smolagents) for the agent framework
 - [Ollama](https://ollama.ai/) for local LLM inference
+- [DeepFace](https://github.com/serengil/deepface) for face recognition capabilities
 
 ## Contact
 
