@@ -67,9 +67,8 @@ def add_image_with_person_name_from_path(image_path, client, add_faces_vector=Tr
     embeddings_query = DeepFace.represent(
         img_path=image_path,
         model_name="Facenet512",
-        detector_backend="opencv",   # ou mtcnn, mediapipe, opencv
+        detector_backend="yolov8",   # ou mtcnn, mediapipe, opencv
         align=True,
-        max_faces=10                    # autorise la détection de plusieurs visages
     )
 
     names = []
@@ -87,6 +86,23 @@ def add_image_with_person_name_from_path(image_path, client, add_faces_vector=Tr
             name = point.payload.get("name")
             names.append(name)
             scores.append(point.score)
+
+            if add_faces_vector and point.score < 0.8:  # seuil de similarité pour ajouter un nouveau visage
+                # Ajouter le vecteur du visage dans la collection de visages
+                uid = uuid.uuid4()
+                client.upsert(
+                    collection_name=faces_collection,
+                    points=[
+                        models.PointStruct(
+                            id=str(uid),
+                            vector=embeddings_query_vector,
+                            payload={
+                                "name": name,
+                                "image_path": image_path
+                            }
+                        )
+                    ]
+                )
     
     # Vérification si l'image est déjà dans la collection d'images
     existing = client.scroll(
@@ -126,10 +142,11 @@ def add_image_with_person_name_from_path(image_path, client, add_faces_vector=Tr
 
 # Fonction qui ajoute uniquement le vecteurs d'un seul visage avec le nom fournis, a partir d'une image
 def add_face_with_person_name_from_path(image_path, person_name, client, faces_collection="faces"):
+
     embeddings_query = DeepFace.represent(
         img_path=image_path,
         model_name="Facenet512",
-        detector_backend="opencv",   # ou mtcnn, mediapipe, opencv
+        detector_backend="yolov8",   # ou mtcnn, mediapipe, opencv
         align=True,
     )
 
@@ -163,7 +180,7 @@ def add_face_with_person_name_from_path(image_path, person_name, client, faces_c
     # Ajout du visage dans la collection de visages
     uid = uuid.uuid4()
 
-    client.upsert(
+    done = client.upsert(
         collection_name=faces_collection,
         points=[
             models.PointStruct(
@@ -176,4 +193,4 @@ def add_face_with_person_name_from_path(image_path, person_name, client, faces_c
             )
         ]
     )
-    return True
+    return done
