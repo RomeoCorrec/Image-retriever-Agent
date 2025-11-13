@@ -1,18 +1,20 @@
 # Image Retriever Agent
 
-An AI-powered image search system that finds images using natural language descriptions and person names.
+An AI-powered image search system that finds images using natural language descriptions and **the names of your loved ones**.
 
 ## What It Does
 
-This tool allows you to search for images in your collection by simply describing what you're looking for in plain language. For example: "Find images of Roméo in China" or "Photos of a sunset over mountains".
+This tool allows you to search for images in your collection by simply describing what you're looking for in plain language. **You can search by the names of your loved ones** - family members, friends, or anyone important to you. For example: "Find images of Roméo in China", "Photos of Grandma at the beach", or "Pictures of Sarah and Tom at the wedding".
 
 ## How It Works
 
 1. You provide a natural language query (in English or French)
-2. An AI agent extracts person names and visual descriptions from your query
+2. An AI agent extracts **the names of people you care about** and visual descriptions from your query
 3. The description is converted into a vector using CLIP (a multimodal AI model)
 4. The system searches a Qdrant vector database for similar images
 5. Results are filtered by person names (if specified) and returned with confidence scores
+
+**The system recognizes names of your loved ones** - whether it's family, friends, or anyone special - making it easy to find personal memories in your photo collection.
 
 ## Technologies Used
 
@@ -62,7 +64,9 @@ python main.py
 
 Then enter your query when prompted, for example:
 - "Find images of Roméo in China"
-- "Images of a sunset over mountains"
+- "Photos of Mom and Dad at the party"
+- "Images avec Grand-mère au jardin"
+- "Pictures of my sister at the beach"
 - "Photos avec Alice et Bob au restaurant"
 
 ## Project Structure
