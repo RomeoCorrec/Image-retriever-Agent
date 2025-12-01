@@ -2,7 +2,6 @@ from qdrant_client import QdrantClient
 from qdrant_client.http import models
 from PIL import Image, ImageOps
 from smolagents import tool
-import matplotlib.pyplot as plt
 
 from fonctions import *
 
@@ -72,16 +71,4 @@ def retrieve_images_by_persons_names_and_image_description(
     if len(results_paths) == 0:
         print("Aucune image trouvée avec un score suffisant.")
         
-    if plot_found_images and len(results_paths) > 0:
-        fig, axes = plt.subplots(1, len(results_paths), figsize=(5 * len(results_paths), 5))
-        if len(results_paths) == 1:
-            axes = [axes]  # Assurer que axes est toujours une liste
-        for ax, (path, score) in zip(axes, results_paths.items()):
-            img = Image.open(path).convert("RGB")
-            img = ImageOps.exif_transpose(img).convert("RGB")
-            ax.imshow(img)
-            ax.axis("off")
-            ax.set_title(f"Score: {score:.2f}")
-        plt.show()
-
     return results_paths

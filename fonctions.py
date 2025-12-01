@@ -7,6 +7,10 @@ from deepface import DeepFace
 import uuid
 from qdrant_client.http import models
 
+# Variables globales pour le cache
+_CLIP_MODEL = None
+_CLIP_PROCESSOR = None
+
 from pathlib import Path
 # Fonction pour se connecter à Hugging Face
 def login_huggingface(token):
@@ -15,10 +19,11 @@ def login_huggingface(token):
 
 # Fonction pour se charger le modèle CLIP et le processeur
 def load_clip_model_processor(model_id = "openai/clip-vit-large-patch14"):
-    model = CLIPModel.from_pretrained(model_id)
-    processor = CLIPProcessor.from_pretrained(model_id)
-    model.eval()
-    return model, processor
+    _CLIP_MODEL = CLIPModel.from_pretrained(model_id)
+    _CLIP_PROCESSOR = CLIPProcessor.from_pretrained(model_id)
+    _CLIP_MODEL.eval()
+
+    return _CLIP_MODEL, _CLIP_PROCESSOR
 
 
 # Chargement du modèle Ollama via SmolAgents
