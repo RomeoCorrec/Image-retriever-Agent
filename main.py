@@ -46,7 +46,7 @@ def main():
         )
 
         # Demander a l'utilisateur une tâche
-        task = input("Quelle image souhaitez-vous trouver ? ")
+        task = input("Quelle image souhaitez-vous trouver ?")
 
         prompt = load_filled_prompt(
             template_path='prompts.txt',

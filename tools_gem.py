@@ -1,28 +1,26 @@
 from qdrant_client import QdrantClient
 from qdrant_client.http import models
-from smolagents import tool
 from fonctions import embed_text_single
 
-# Note: On n'importe plus connect_to_qdrant ici car l'agent recevra le client déjà connecté
+# Plus d'import de smolagents !
 
-@tool
 def retrieve_images_by_persons_names_and_image_description(
     image_description: str,
-    client: QdrantClient,
+    client: QdrantClient, # Gemini ignorera cet argument s'il n'est pas dans la docstring, on gérera l'injection manuellement
     person_names: list = None,
     top_k: int = 3
-) -> str: # L'agent préfère recevoir du texte (str) pour analyser la réponse
+) -> dict: # On peut renvoyer un dict, Gemini le lira très bien
     """
     Récupère les images en fonction des noms de personnes et d'une description.
     
     Args:
-        image_description: Description visuelle (sans les noms).
-        client: Le client Qdrant connecté.
-        person_names: Liste des noms de personnes (optionnel).
+        image_description: Description visuelle de la scène (ex: "à la plage").
+        person_names: Liste des noms de personnes à filtrer (ex: ["romeo"]).
         top_k: Nombre max de résultats.
     """
     
-    # Gestion des noms vides ou None
+    # ... (Le reste du code de la fonction reste IDENTIQUE à ce que tu avais) ...
+    
     if person_names is None or len(person_names) == 0:
         filter = None
     else:
@@ -34,8 +32,8 @@ def retrieve_images_by_persons_names_and_image_description(
         ]
         filter = models.Filter(must=must_conditions)
 
-    # Recherche vectorielle
     try:
+        # Note: assure-toi que embed_text_single est bien importé
         vec = embed_text_single(image_description)
         hits = client.query_points(
             collection_name="images_collection",
@@ -45,15 +43,14 @@ def retrieve_images_by_persons_names_and_image_description(
             query_filter=filter
         )
     except Exception as e:
-        return f"Erreur lors de la recherche Qdrant: {str(e)}"
+        return {"error": str(e)}
 
-    results = []
+    results = {}
     for point in hits.points:
-        if point.score > 0.22: # Seuil un peu plus strict
-            path = point.payload.get("path")
-            results.append(f"Image: {path} (Score: {point.score:.2f})")
+        if point.score > 0.22: 
+            results[point.payload.get("path")] = point.score
     
     if not results:
-        return "Aucune image trouvée avec ces critères."
+        return {"message": "Aucune image trouvée."}
         
-    return "\n".join(results)
+    return results

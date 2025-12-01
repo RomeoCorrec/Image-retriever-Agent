@@ -69,13 +69,19 @@ def load_filled_prompt(template_path: str, QDRANT_URL: str, QDRANT_KEY: str, tas
 
 # Function pour ajouter une image avec les noms des personnes détectées
 def add_image_with_person_name_from_path(image_path, client, add_faces_vector=True, images_collection="images_collection", faces_collection="faces"):
-    embeddings_query = DeepFace.represent(
-        img_path=image_path,
-        model_name="Facenet512",
-        detector_backend="yolov8",   # ou mtcnn, mediapipe, opencv
-        align=True,
-    )
+    
+    try:
+        embeddings_query = DeepFace.represent(
+            img_path=image_path,
+            model_name="Facenet512",
+            detector_backend="yolov8",   # ou mtcnn, mediapipe, opencv
+            align=True,
+        )
+    except Exception:
+        print(f"Aucun visage détecté dans {image_path}, on l'ajoute comme image simple.")
+        embeddings_query = []
 
+    numbers_of_detected_peoples = len(embeddings_query)
     names = []
     scores = []
     for emb in embeddings_query:
@@ -85,6 +91,7 @@ def add_image_with_person_name_from_path(image_path, client, add_faces_vector=Tr
             query=embeddings_query_vector,
             limit=1,
             with_payload=True,
+            score_threshold=0.5,
         )
         
         for point in hits.points:
@@ -92,7 +99,7 @@ def add_image_with_person_name_from_path(image_path, client, add_faces_vector=Tr
             names.append(name)
             scores.append(point.score)
 
-            if add_faces_vector and point.score < 0.8:  # seuil de similarité pour ajouter un nouveau visage
+            if add_faces_vector and (point.score > 0.65 and point.score < 0.95): # seuil de similarité pour ajouter un nouveau visage
                 # Ajouter le vecteur du visage dans la collection de visages
                 uid = uuid.uuid4()
                 client.upsert(
@@ -124,8 +131,8 @@ def add_image_with_person_name_from_path(image_path, client, add_faces_vector=Tr
     )
     if len(existing[0]) > 0:
         print(f"Image déjà présente : {image_path}")
-        return names, scores  # on quitte la fonction
-        
+        return numbers_of_detected_peoples, names, scores, False  # on quitte la fonction
+
     # Ajout de l'image dans la collection d'images
     uid = uuid.uuid4()
     vec = embed_image(image_path)
@@ -143,7 +150,7 @@ def add_image_with_person_name_from_path(image_path, client, add_faces_vector=Tr
             )
         ]
     )
-    return names, scores
+    return numbers_of_detected_peoples, names, scores, True
 
 # Fonction qui ajoute uniquement le vecteurs d'un seul visage avec le nom fournis, a partir d'une image
 def add_face_with_person_name_from_path(image_path, person_name, client, faces_collection="faces"):
