@@ -1,0 +1,45 @@
+services:
+  # --- SERVICE 1 : BASE DE DONNÉES ---
+  qdrant:
+    image: qdrant/qdrant
+    container_name: agent_qdrant
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage # On utilise aussi un volume interne pour la BDD (plus sûr)
+
+  # --- SERVICE 2 : BACKEND (API) ---
+  api:
+    build: .
+    container_name: agent_api
+    command: python -m uvicorn api:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    environment:
+      - QDRANT_URL=http://qdrant:6333
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+    volumes:
+      - ./uploads:/app/uploads       # On garde celui-ci en local pour voir les images
+      - hf_cache:/app/models         # <--- CHANGEMENT : Volume interne pour les modèles
+    depends_on:
+      - qdrant
+
+  # --- SERVICE 3 : FRONTEND (STREAMLIT) ---
+  frontend:
+    build: .
+    container_name: agent_frontend
+    command: streamlit run frontend.py
+    ports:
+      - "8501:8501"
+    environment:
+          - API_URL=http://api:8000
+    volumes:
+      - ./uploads:/app/uploads
+    depends_on:
+      - api
+
+# --- NOUVELLE SECTION ---
+# On définit les volumes qui sont gérés par Docker en interne
+volumes:
+  qdrant_data:
+  hf_cache:

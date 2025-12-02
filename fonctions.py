@@ -1,7 +1,6 @@
 from transformers import CLIPProcessor, CLIPModel
 from PIL import Image
 import torch
-from smolagents import LiteLLMModel
 from huggingface_hub import login
 from deepface import DeepFace
 import uuid
@@ -26,15 +25,15 @@ def load_clip_model_processor(model_id = "openai/clip-vit-large-patch14"):
     return _CLIP_MODEL, _CLIP_PROCESSOR
 
 
-# Chargement du modèle Ollama via SmolAgents
-def load_ollama_model(model_id="ollama_chat/qwen2:7b", api_base="http://127.0.0.1:11434", num_ctx=4096):
-    model = LiteLLMModel(
-            model_id=model_id,
-            api_base=api_base,
-            num_ctx=num_ctx,
-        )
+# # Chargement du modèle Ollama via SmolAgents
+# def load_ollama_model(model_id="ollama_chat/qwen2:7b", api_base="http://127.0.0.1:11434", num_ctx=4096):
+#     model = LiteLLMModel(
+#             model_id=model_id,
+#             api_base=api_base,
+#             num_ctx=num_ctx,
+#         )
     
-    return model
+#     return model
 
 
 # Fonction pour encoder une image
@@ -74,7 +73,7 @@ def add_image_with_person_name_from_path(image_path, client, add_faces_vector=Tr
         embeddings_query = DeepFace.represent(
             img_path=image_path,
             model_name="Facenet512",
-            detector_backend="yolov8",   # ou mtcnn, mediapipe, opencv
+            detector_backend="opencv",   # ou mtcnn, mediapipe, opencv
             align=True,
         )
     except Exception:
@@ -158,7 +157,7 @@ def add_face_with_person_name_from_path(image_path, person_name, client, faces_c
     embeddings_query = DeepFace.represent(
         img_path=image_path,
         model_name="Facenet512",
-        detector_backend="yolov8",   # ou mtcnn, mediapipe, opencv
+        detector_backend="opencv",   # ou mtcnn, mediapipe, opencv
         align=True,
     )
 

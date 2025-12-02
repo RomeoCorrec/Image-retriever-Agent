@@ -4,6 +4,8 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from qdrant_client import QdrantClient
+from contextlib import asynccontextmanager
+from qdrant_client.http import models
 from pathlib import Path
 
 # Imports locaux
@@ -25,11 +27,45 @@ qdrant_url = os.getenv("QDRANT_URL", "http://localhost:6333")
 print(f"Connexion à Qdrant sur : {qdrant_url}")
 client = QdrantClient(url=qdrant_url) # Pas de clé en local
 
+# ... (après la définition de client = QdrantClient(...))
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # --- CODE QUI S'EXECUTE AU DEMARRAGE ---
+    print("🚀 Démarrage : Vérification des collections Qdrant...")
+    
+    try:
+        # 1. Collection IMAGES (CLIP = 768 dimensions)
+        if not client.collection_exists("images_collection"):
+            print("Creation de la collection 'images_collection'...")
+            client.create_collection(
+                collection_name="images_collection",
+                vectors_config=models.VectorParams(size=768, distance=models.Distance.COSINE)
+            )
+        
+        # 2. Collection VISAGES (FaceNet = 512 dimensions)
+        if not client.collection_exists("faces"):
+            print("Creation de la collection 'faces'...")
+            client.create_collection(
+                collection_name="faces",
+                vectors_config=models.VectorParams(size=512, distance=models.Distance.COSINE)
+            )
+            
+        print("✅ Qdrant est prêt !")
+        
+    except Exception as e:
+        print(f"⚠️ Erreur lors de l'init Qdrant : {e}")
+        
+    yield 
+    # (Le code après yield s'exécuterait à l'extinction, ici rien)
+
+# --- MODIFICATION DE L'APP ---
+# On attache la fonction lifespan à l'application
+app = FastAPI(title="Image Retriever API", lifespan=lifespan)
+
 # Pré-charger CLIP au démarrage de l'API pour éviter les lenteurs
 print("Chargement de CLIP...")
 load_clip_model_processor()
-
-app = FastAPI(title="Image Retriever API (Gemini Powered)")
 
 # --- Modèles de données ---
 class AgentRequest(BaseModel):
@@ -58,20 +94,23 @@ def search_tool(image_description: str, person_names: list = None):
 
 # --- Initialisation de l'Agent Gemini ---
 
-# Chargement du prompt système (ton fichier prompts.txt)
-system_instruction = Path("prompts.txt").read_text(encoding="utf-8")
-# On nettoie un peu le template car Gemini n'a pas besoin des accolades {QDRANT_URL} dans le texte
-system_instruction = system_instruction.replace("{QDRANT_URL}", qdrant_url).replace("{QDRANT_KEY}", "Locally Managed")
+try:
+    if Path("prompts.txt").exists():
+        system_instruction = Path("prompts.txt").read_text(encoding="utf-8")
+    else:
+        system_instruction = "You are a helpful assistant for image retrieval."
+        print("⚠️ prompts.txt non trouvé, utilisation du prompt par défaut.")
 
-# Création du modèle avec l'outil
-model = genai.GenerativeModel(
-    model_name="gemini-2.5-flash",
-    tools=[search_tool], # On lui donne notre wrapper
-    system_instruction=system_instruction
-)
+    system_instruction = system_instruction.replace("{QDRANT_URL}", qdrant_url).replace("{QDRANT_KEY}", "Locally Managed")
 
-# On lance une session de chat (automatique function calling activé)
-chat_session = model.start_chat(enable_automatic_function_calling=True)
+    model = genai.GenerativeModel(
+        model_name='gemini-2.5-flash',
+        tools=[search_tool],
+        system_instruction=system_instruction
+    )
+    chat_session = model.start_chat(enable_automatic_function_calling=True)
+except Exception as e:
+    print(f"Erreur init Gemini : {e}")
 
 # Ajoute ces imports en haut de api.py
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
@@ -112,9 +151,11 @@ def add_image_endpoint(file: UploadFile = File(...)):
         if added:
             return {"status": "success", "detected_people": names, "filename": file.filename,
                     "numbers_of_detected_peoples":nbr,
-                    "scores":scores}    
+                    "scores":scores}
         else:
-            return
+            return {"status": "photo already in database", "detected_people": names, "filename": file.filename,
+                    "numbers_of_detected_peoples":nbr,
+                    "scores":scores}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -144,4 +185,14 @@ def add_face_endpoint(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# ... (La route /ask_agent reste inchangée) ...
+@app.post("/ask_agent")
+def ask_agent_endpoint(request: AgentRequest):
+    if not chat_session:
+        raise HTTPException(status_code=500, detail="L'agent n'est pas initialisé (Erreur Gemini).")
+    try:
+        response = chat_session.send_message(request.query)
+        return {"response": response.text}
+    except Exception as e:
+        print(f"Erreur Gemini : {e}")
+        # En cas d'erreur 500 de Google, on renvoie le détail
+        raise HTTPException(status_code=500, detail=str(e))

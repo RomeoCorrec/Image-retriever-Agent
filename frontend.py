@@ -10,7 +10,7 @@ st.set_page_config(
 )
 
 # URL de ton API (Backend)
-API_URL = "http://127.0.0.1:8000"
+API_URL = os.getenv("API_URL", "http://127.0.0.1:8000")
 
 st.title("📸 Agent de Recherche d'Images")
 st.markdown("---")
@@ -31,7 +31,7 @@ with st.sidebar:
         uploaded_file = st.file_uploader("Choisir une image", type=['jpg', 'jpeg', 'png'], key="uploader_img")
         
         if uploaded_file is not None:
-            if st.button("Indexser l'image", type="primary"):
+            if st.button("Indexer l'image", type="primary"):
                 with st.spinner("Envoi et analyse..."):
                     try:
                         # Préparation de l'envoi du fichier (Multipart)
